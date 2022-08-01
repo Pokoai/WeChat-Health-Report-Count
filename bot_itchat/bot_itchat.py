@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding:utf-8 -*-
 
+
 import itchat
 import schedule
 import time
@@ -16,7 +17,7 @@ userName = chatroom[0][u'UserName']
 # 循环打卡三次，每次间隔1秒
 def job():
     for i in range(3):
-        itchat.send("打卡", toUserName=userName)
+        itchat.send("测试", toUserName=userName)
         time.sleep(1)
 
 # 每天固定时间运行job，可自定义引号中的时间
