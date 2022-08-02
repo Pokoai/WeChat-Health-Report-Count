@@ -21,8 +21,8 @@ def job():
         time.sleep(1)
 
 # 每天固定时间运行job，可自定义引号中的时间
-schedule.every().day.at("08:20").do(job)
-schedule.every().day.at("17:35").do(job)
+# schedule.every().day.at("08:20").do(job)
+# schedule.every().day.at("17:35").do(job)
 
 while True:
     schedule.run_pending()

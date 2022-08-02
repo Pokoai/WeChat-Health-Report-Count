@@ -15,17 +15,21 @@ wx.GetSessionList()  # 获取会话列表
 
 # 群内所有人员微信名
 name_list = [
-    "zhd", "fsg",
+    "XXX1", "XXX2",
 ]
 
-# 真实姓名
+# 真实姓名映射
 name_dic = {
-    "zhd": "张三",
-    "fsg": "李四",
+    "XXX1": "XXX",
+    "XXX2": "XXX",
 }
 
 # 遗漏的人员名单
 name_out_set = set()
+
+# 有未打卡人员标志位
+flg_unclock = 1
+
 
 self_intro = '''0w0蔻你吉瓦~\n
 我是一个健康打卡提醒 Bot，\n
@@ -52,28 +56,36 @@ msg_end = "~~~~~~~~~~END~~~~~~~~~"
 
 # 开始打卡通知
 def start_clock_notice():
+    global flg_unclock
+    flg_unclock = 1  # 有未打卡人员标志位置1
+
     # 开始提醒
-    # wx.SendMsg(msg_block)
     WxUtils.SetClipboard(msg_start)
     wx.SendClipboard()
 
     # 打卡提醒
-    # wx.SendMsg(msg_auto)
     WxUtils.SetClipboard(msg_auto)
     wx.SendClipboard()
 
 
 # 打卡提醒并统计
 def clock_notice_count():
-    who = '微信机器人测试群'
-    wx.ChatWith(who)
+    global flg_unclock
 
-    # 打卡提醒
-    WxUtils.SetClipboard(msg_auto)
-    wx.SendClipboard()
+    # 若全员已打卡，则跳过该程序
+    if 1 == flg_unclock:
+        who = '微信机器人测试群'
+        wx.ChatWith(who)
 
-    # 更新未打卡名单
-    count_unclock()
+        # 打卡提醒
+        WxUtils.SetClipboard(msg_auto)
+        wx.SendClipboard()
+
+        # 更新未打卡名单
+        count_unclock()
+    else:
+        pass
+
 
 # 微信名映射为真实姓名
 def wxname2true_name(name_list):
@@ -85,9 +97,11 @@ def wxname2true_name(name_list):
 
 # 统计函数
 def count_unclock():
-    name_unsigned = name_list.copy()  # 未打卡名单初始化
+    global flg_unclock
+    flg_name_out = 0  # 遗漏名单标志位
+
+    name_unclock = name_list.copy()  # 未打卡名单初始化
     msg_db = {}
-    flg = 0  # 遗漏名单标志位
 
     who = '微信机器人测试群'
     wx.ChatWith(who)
@@ -97,19 +111,19 @@ def count_unclock():
     # print(msgs)
     for msg in msgs:
         # 管理员发送的开始信号作为循环结束条件
-        if msg[0] == "TTup" and msg[1] == msg_start:
+        if msg[0] == "TTup" and ("开始" in msg[1] or msg[1] == msg_start):
             break
         elif msg[0] == "SYS" or msg[0] == "TTup":  # 忽视系统和管理员的发言
             continue
         else:
             # 更新未打卡名单
             try:
-                name_unsigned.remove(msg[0])
+                name_unclock.remove(msg[0])
             except:  # 如果发言者不在未打卡名单里
-                if msg[0] not in name_list:  # 同时也不在所有名单里
-                    name_out_set.add(msg[0])
+                if msg[0] not in name_list:   # 同时也不在所有名单里
+                    name_out_set.add(msg[0])  # 添加到遗漏名单中
                     print("Name not find:" + msg[0])
-                    flg = 1
+                    flg_name_out = 1
             # else:
                 # 爬取群聊内容，根据内容对发送者进行分类
                 # try:
@@ -126,11 +140,15 @@ def count_unclock():
     # print(name_list)
     # wx.SendMsg(msg_sign_situation)
 
-    true_name_unsigned = wxname2true_name(name_unsigned)
-    wx.SendMsg("未打卡人员：" + '，'.join(true_name_unsigned))
+    if name_unclock == []:
+        wx.SendMsg("恭喜，全员打卡完成！" )
+        flg_unclock = 0
+    else:
+        true_name_unclock = wxname2true_name(name_unclock)
+        wx.SendMsg("未打卡人员：" + '，'.join(true_name_unclock))
 
-    if 1 == flg:
-        flg = 0
+    if 1 == flg_name_out:
+        flg_name_out = 0
         wx.SendMsg("遗漏名单：" + '，'.join(list(name_out_set)))
 
 
@@ -140,9 +158,9 @@ def listen_order():
     # print(msgs)
     for msg in msgs[::-1]:
         info = msg[1]  # ('TTup', '介绍', '4252629441034')
-        if info == msg_end:
+        if "END" in info or info == msg_end:
             break
-        elif info == "介绍":
+        elif info == "INTRO":
             # wx.SendMsg(self_intro)
             WxUtils.SetClipboard(self_intro)
             wx.SendClipboard()
@@ -167,23 +185,31 @@ def listen_order():
             continue
 
 
-if __name__ == '__main__':
+def webot_health_notice():
+    
     # 获取当前微信客户端
     wx = WeChat()
     # 获取会话列表
     wx.GetSessionList()
 
-    count_unclock() # 一天内只要重新运行程序，必须从count()开始
+    # 一天内只要重新运行程序，必须从count()开始
+    # count_unclock()
 
     schedule.every().day.at("09:00").do(start_clock_notice)
-
+    
     schedule.every().day.at("12:15").do(clock_notice_count)
     schedule.every().day.at("18:00").do(clock_notice_count)
     schedule.every().day.at("23:00").do(clock_notice_count)
 
+
     # schedule.every(1).minutes.do(Listen_Order)
-    schedule.every(30).seconds.do(listen_order)
+    schedule.every(10).seconds.do(listen_order)
 
     while True:
         schedule.run_pending()  # 运行所有可以运行的任务
         time.sleep(1)
+
+
+
+if __name__ == '__main__':
+    webot_health_notice()
