@@ -6,12 +6,17 @@ import schedule
 import time
 import os
 
-os.environ["http_proxy"] = "http://127.0.0.1:7890"
-os.environ["https_proxy"] = "http://127.0.0.1:7890"
+import requests
+
+
+# os.environ["http_proxy"] = "http://127.0.0.1:7890"
+# os.environ["https_proxy"] = "http://127.0.0.1:7890"
 
 # Init
 wx = WeChat()  # 获取当前微信客户端
 wx.GetSessionList()  # 获取会话列表
+
+wechat_group = '微信机器人测试群'  # 微信群名称
 
 # 群内所有人员微信名
 name_list = [
@@ -42,12 +47,19 @@ msg_auto = '''-------------------------------\n
 您今天打卡了吗？(若已打卡，请回复“已打卡”)\n
 您离杭报备了吗？\n
 小助手提醒您：实验千万条，打卡第一条；出门不报备，禁闭两行泪。\n
+我还提供如下几个功能，直接回复括号内关键词获取：
+1. 天气预报(tq)；
+2. 笑话(xh)；
+3. 电影票房排行榜(dy);
 -------------------------------'''
 
-msg_functions = '''目前实现的功能：\n
-1. 自动化定时发放通知；\n
-2. 自动化提醒未打卡人员；\n
-3. 功能查询；'''
+msg_functions = '''目前实现的功能（直接回复括号内关键词获取）：\n
+1. 天气预报(tq)；\n
+2. 笑话(xh)；\n
+3. 电影票房排行榜(dy);\n
+4. 自动化定时发放通知；
+5. 自动化提醒未打卡人员；
+'''
 
 msg_start = "！！！今日健康打卡开始 ！！！"
 
@@ -59,6 +71,8 @@ def start_clock_notice():
     global flg_unclock
     flg_unclock = 1  # 有未打卡人员标志位置1
 
+    who = wechat_group
+    wx.ChatWith(who)
     # 开始提醒
     WxUtils.SetClipboard(msg_start)
     wx.SendClipboard()
@@ -74,7 +88,7 @@ def clock_notice_count():
 
     # 若全员已打卡，则跳过该程序
     if 1 == flg_unclock:
-        who = '微信机器人测试群'
+        who = wechat_group
         wx.ChatWith(who)
 
         # 打卡提醒
@@ -103,7 +117,7 @@ def count_unclock():
     name_unclock = name_list.copy()  # 未打卡名单初始化
     msg_db = {}
 
-    who = '微信机器人测试群'
+    who = wechat_group
     wx.ChatWith(who)
     wx.LoadMoreMessage()
     msgs = wx.GetAllMessage
@@ -111,9 +125,9 @@ def count_unclock():
     # print(msgs)
     for msg in msgs:
         # 管理员发送的开始信号作为循环结束条件
-        if msg[0] == "TTup" and ("开始" in msg[1] or msg[1] == msg_start):
+        if msg[0] == "BotManager" and ("开始" in msg[1] or msg[1] == msg_start):
             break
-        elif msg[0] == "SYS" or msg[0] == "TTup":  # 忽视系统和管理员的发言
+        elif msg[0] == "SYS" or msg[0] == "BotManager" or ("打卡" not in msg[1]):  # 忽视系统和管理员的发言
             continue
         else:
             # 更新未打卡名单
@@ -152,6 +166,72 @@ def count_unclock():
         wx.SendMsg("遗漏名单：" + '，'.join(list(name_out_set)))
 
 
+# 青云客智能聊天机器人
+def ai_qingyunke(msg):
+    url = 'http://api.qingyunke.com/api.php?key=free&appid=0&msg=%s' % msg
+    res = requests.get(url)
+    res.raise_for_status()
+    answer = res.json()['content'].replace('{br}', '\n')
+    return answer
+
+# 思知对话机器人
+def ai_sizhi(msg):
+    url = 'https://api.ownthink.com/bot?spoken=%s' % msg
+    res = requests.get(url)
+    res.raise_for_status()
+    answer = res.json()['data']['info']['text']
+    print(type(answer))
+    return answer
+
+# 发送未来几天天气预报
+def weather_report():
+    msg = ai_qingyunke("杭州天气")
+    wx.ChatWith(wechat_group)
+    WxUtils.SetClipboard(msg)
+    wx.SendClipboard()
+
+# 获取今日天气数据（字符串）
+def today_weather():
+    msg = ai_qingyunke("杭州天气")
+    lt = msg.split('\n')[1].split('：')
+    # lt[0] = lt[0].replace('[', '(').replace(']', ')')
+    lt[1] = lt[1].replace("低", "最低").replace("高", "最高")
+    msg_today = f"                  {lt[0]}\n今日天气：{lt[1]}"
+    return msg_today
+
+# 发送笑话
+def xiaohua_report():
+    msg = ai_qingyunke("笑话").split("提示")[0]
+    wx.ChatWith(wechat_group)
+    WxUtils.SetClipboard(msg)
+    wx.SendClipboard()
+
+# 一言：获取每日一句数据（字符串）
+def yiyan():
+    url = 'https://v1.hitokoto.cn/?c=f&encode=json'
+    res = requests.get(url)
+    res.raise_for_status()
+    data = res.json()
+    msg = data['hitokoto']
+    author = data['from']
+    answer = f"每日一句：『{msg}』——{author}"
+    return answer
+
+
+
+def today_report():
+    # 今日天气
+    msg_weather = today_weather()
+    # 每日一句
+    msg_word = yiyan()
+    # 历史上的今天
+
+    wx.ChatWith(wechat_group)
+    msg = msg_weather + '\n\n' + msg_word
+    WxUtils.SetClipboard(msg)
+    wx.SendClipboard()
+
+
 # 监视聊天中有没有出现命令指令，如果出现了，就立刻执行相关指令
 def listen_order():
     msgs = wx.GetAllMessage
@@ -160,26 +240,37 @@ def listen_order():
         info = msg[1]  # ('TTup', '介绍', '4252629441034')
         if "END" in info or info == msg_end:
             break
-        elif info == "INTRO":
+        elif info == "INTRO":  # 机器人自我介绍
             # wx.SendMsg(self_intro)
             WxUtils.SetClipboard(self_intro)
             wx.SendClipboard()
             wx.SendMsg(msg_end)
-        elif info == "FUNC":
+        elif info == "FUNC":  # 功能介绍
             # wx.SendMsg(msg_functions)
             WxUtils.SetClipboard(msg_functions)
             wx.SendClipboard()
             wx.SendMsg(msg_end)
-        elif info == "NAME":
+        elif info == "NAME":  # 所有人员名单
             true_name_list = wxname2true_name(name_list)
             wx.SendMsg(" ".join(true_name_list))
             wx.SendMsg(msg_end)
-        elif info == "RESTART":
+        elif info == "RESTART" and msg[0] == 'BotManager':  # 重启机器人
             wx.SendMsg("机器人已重启，请所有人重新上报一次！")
             start_clock_notice()
             wx.SendMsg(msg_end)
-        elif info == "NOTICE":
+        elif info == "NOTICE":  # 手动提醒打卡
             count_unclock()
+            wx.SendMsg(msg_end)
+        # 以下为附加功能
+        elif info == 'tq':  # 天气预报
+            weather_report()
+            wx.SendMsg(msg_end)
+        elif info == 'xh':  # 笑话
+            xiaohua_report()
+            wx.SendMsg(msg_end)
+        elif info == 'dy':  # 电影票房排行榜
+            # movie_report()
+            wx.SendMsg("https://piaofang.maoyan.com/dashboard")
             wx.SendMsg(msg_end)
         else:
             continue
@@ -194,16 +285,24 @@ def webot_health_notice():
 
     # 一天内只要重新运行程序，必须从count()开始
     # count_unclock()
+    today_report()
 
-    schedule.every().day.at("09:00").do(start_clock_notice)
-    
-    schedule.every().day.at("12:15").do(clock_notice_count)
-    schedule.every().day.at("18:00").do(clock_notice_count)
+    # 今日天气预报
+    # schedule.every().day.at("09:00").do(today_report)
+    schedule.every().day.at("04:27").do(today_report)
+
+    # 启动今日打卡提醒
+    schedule.every().day.at("10:00").do(start_clock_notice)
+
+    # 打卡提醒
+    schedule.every().day.at("11:00").do(clock_notice_count)
+    schedule.every().day.at("14:00").do(clock_notice_count)
+    schedule.every().day.at("17:45").do(clock_notice_count)
     schedule.every().day.at("23:00").do(clock_notice_count)
 
-
-    # schedule.every(1).minutes.do(Listen_Order)
-    schedule.every(10).seconds.do(listen_order)
+    # 每隔一分钟遍历微信群聊天记录，监控是否实现命令关键词
+    # schedule.every(1).minutes.do(listen_order)
+    # schedule.every(10).seconds.do(listen_order)
 
     while True:
         schedule.run_pending()  # 运行所有可以运行的任务
