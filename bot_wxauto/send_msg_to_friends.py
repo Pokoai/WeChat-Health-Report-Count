@@ -1,5 +1,5 @@
 #! python
-# send_msg_to_friends.py - 给微信群和好友发送消息
+# send_msg_to_friends.py - 给微信群和好友发送消息，已集成到wechat2pdf中，公众号有新文章发布时，通知到微信群
 
 import pywintypes # 务必加这一句，否则会报错"ImportError: DLL load failed while importing win32gui: 找不到指定的程序。"
 

@@ -18,16 +18,17 @@ wx.GetSessionList()  # 获取会话列表
 
 wechat_group = '微信机器人测试群'  # 微信群名称
 
-# 群内所有人员微信名
+# 群内所有人员微信昵称
 name_list = [
-    "XXX1", "XXX2",
+    "媞嫣", "Adair",
 ]
 
-# 真实姓名映射
+# 称呼映射
 name_dic = {
-    "XXX1": "XXX",
-    "XXX2": "XXX",
+    "媞嫣": "小宝",
+    "Adair": "大宝",
 }
+
 
 # 遗漏的人员名单
 name_out_set = set()
@@ -42,24 +43,32 @@ self_intro = '''0w0蔻你吉瓦~\n
 随开发者的心情迭代，\n
 并且可能会随着某一次的更新去世qaq'''
 
+
 msg_auto = '''-------------------------------\n
 大家好，我是本群的【健康打卡&报备提醒小助手】\n
 您今天打卡了吗？(若已打卡，请回复“已打卡”)\n
 您离杭报备了吗？\n
 小助手提醒您：实验千万条，打卡第一条；出门不报备，禁闭两行泪。\n
-我还提供如下几个功能，直接回复括号内关键词获取：
-1. 天气预报(tq)；
-2. 笑话(xh)；
-3. 电影票房排行榜(dy);
 -------------------------------'''
 
+# msg_auto = '''-------------------------------\n
+# 大家好，我是本群的【健康打卡&报备提醒小助手】\n
+# 您今天打卡了吗？(若已打卡，请回复“已打卡”)\n
+# 您离杭报备了吗？\n
+# 小助手提醒您：实验千万条，打卡第一条；出门不报备，禁闭两行泪。\n
+# 我还提供如下几个功能，直接回复括号内关键词获取：
+# 1. 天气预报(tq)；
+# 2. 笑话(xh)；
+# 3. 电影票房排行榜(dy);
+# -------------------------------'''
+
 msg_functions = '''目前实现的功能（直接回复括号内关键词获取）：\n
-1. 天气预报(tq)；\n
-2. 笑话(xh)；\n
-3. 电影票房排行榜(dy);\n
-4. 自动化定时发放通知；
-5. 自动化提醒未打卡人员；
-'''
+# 1. 天气预报(tq)；\n
+# 2. 笑话(xh)；\n
+# 3. 电影票房排行榜(dy);\n
+# 4. 自动化定时发放通知；
+# 5. 自动化提醒未打卡人员；
+# '''
 
 msg_start = "！！！今日健康打卡开始 ！！！"
 
@@ -125,9 +134,9 @@ def count_unclock():
     # print(msgs)
     for msg in msgs:
         # 管理员发送的开始信号作为循环结束条件
-        if msg[0] == "BotManager" and ("开始" in msg[1] or msg[1] == msg_start):
+        if msg[0] == "胡老师" and ("开始" in msg[1] or msg[1] == msg_start):
             break
-        elif msg[0] == "SYS" or msg[0] == "BotManager" or ("打卡" not in msg[1]):  # 忽视系统和管理员的发言
+        elif msg[0] == "SYS" or msg[0] == "胡老师" or ("打卡" not in msg[1]):  # 忽视系统和管理员的发言
             continue
         else:
             # 更新未打卡名单
@@ -277,30 +286,32 @@ def listen_order():
 
 
 def webot_health_notice():
-    
     # 获取当前微信客户端
     wx = WeChat()
     # 获取会话列表
     wx.GetSessionList()
 
+    print("微信机器人运行中...")
+
     # 一天内只要重新运行程序，必须从count()开始
     # count_unclock()
-    today_report()
+    # today_report()
 
     # 今日天气预报
-    # schedule.every().day.at("09:00").do(today_report)
-    schedule.every().day.at("04:27").do(today_report)
+    schedule.every().day.at("09:00").do(today_report)
+    # schedule.every().day.at("00:08").do(today_report)
 
     # 启动今日打卡提醒
     schedule.every().day.at("10:00").do(start_clock_notice)
 
     # 打卡提醒
-    schedule.every().day.at("11:00").do(clock_notice_count)
+    schedule.every().day.at("12:00").do(clock_notice_count)
     schedule.every().day.at("14:00").do(clock_notice_count)
     schedule.every().day.at("17:45").do(clock_notice_count)
     schedule.every().day.at("23:00").do(clock_notice_count)
 
-    # 每隔一分钟遍历微信群聊天记录，监控是否实现命令关键词
+    # 每隔一分钟遍历微信群聊天记录，监控是否出现命令关键词
+    # 注意：频率过高会被封号
     # schedule.every(1).minutes.do(listen_order)
     # schedule.every(10).seconds.do(listen_order)
 
@@ -312,3 +323,4 @@ def webot_health_notice():
 
 if __name__ == '__main__':
     webot_health_notice()
+
